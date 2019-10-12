@@ -10,7 +10,6 @@ require('strings')
 
 function fm_command(...)
     local args = {...}
-
     if args[1] == 'start' then
         local id = windower.ffxi.get_player().id
         windower.send_ipc_message('follow start '..id)
