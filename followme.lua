@@ -23,8 +23,11 @@ function fm_ipc_msg(message)
     if msg[1] == 'follow' then
         if msg[2] == 'start' then
             local id = msg[3]
-            local index = windower.ffxi.get_mob_by_id(id).index
-            windower.ffxi.follow(index)
+            local mob = windower.ffxi.get_mob_by_id(id)
+            if mob then
+                local index = mob.index
+                windower.ffxi.follow(index)
+            end
         elseif msg[2] == 'stop' then
             -- windower.ffxi.follow()
             windower.send_command('setkey numpad7 down;wait .5;setkey numpad7 up;')
