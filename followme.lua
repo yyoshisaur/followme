@@ -14,7 +14,7 @@ ionis_npcs = {
     [257] = {name = 'Quiri-Aliri', menu = 1201},
 }
 
-local ionis_npc_state = 'idle'
+local is_ionis_npc_busy = false
 local send_delay = 0.4
 function get_delay()
     local self = windower.ffxi.get_player().name
@@ -59,16 +59,17 @@ function start_ionis()
     if npc then
         local p = packets.new('outgoing', 0x01A, {
             ["Target"] = npc.id,
-            ["Target Index"] = npc.index
+            ["Target Index"] = npc.index,
+            ["Category"] = 0
         })
         packets.inject(p)
-        ionis_npc_state = 'start'
+        is_ionis_npc_busy = true
     end
 end
 
 function incoming_ionis(id, data, modified, injected, blocked)
     if id == 0x034 then
-        if ionis_npc_state == 'start' then
+        if is_ionis_npc_busy then
             local in_p = packets.parse('incoming', data)
             local npc = get_ionis_npc()
 
@@ -81,14 +82,14 @@ end
 
 function outgoing_ionis(id, data, modified, injected, blocked)
     if id == 0x05B then
-        if ionis_npc_state == 'start' then
+        if is_ionis_npc_busy then
             local out_p = packets.parse('outgoing', data)
             local npc = get_ionis_npc()
 
             if npc and npc.id == out_p["Target"] then
                 out_p["Option Index"] = 1
                 out_p["_unknown1"] = 0
-                ionis_npc_state = 'idle'
+                is_ionis_npc_busy = false
                 return packets.build(out_p)
             end
         end
