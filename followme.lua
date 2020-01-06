@@ -6,7 +6,7 @@ _addon.commands = {'followme','fm'}
 require('strings')
 require('logger')
 require('coroutine')
-
+local bit = require('bit')
 local packets = require('packets')
 
 local ionis_npcs = {
@@ -133,6 +133,14 @@ function start_canteen()
     end
 end
 
+function has_canteen(menu_param)
+    if bit.band(menu_param[29]:byte(), 0x07) then
+        return true
+    else
+        return false
+    end
+end
+
 function incoming_canteen(id, data, modified, injected, blocked)
     if id == 0x034 then
         if is_canteen_npc_busy then
@@ -140,6 +148,10 @@ function incoming_canteen(id, data, modified, injected, blocked)
             local npc = get_canteen_npc()
 
             if npc and npc.id == in_p["NPC"] then
+                if has_canteen(in_p['Menu Parameters']) then
+                    is_canteen_npc_busy = false
+                    log('You already have Canteen!')
+                end
                 windower.send_command('wait 3;setkey escape;wait 0.5;setkey escape up;')
             end
         end
