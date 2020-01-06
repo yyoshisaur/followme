@@ -8,3 +8,6 @@
 * イオニス取得
 
     //followme(//fm) ionis
+* 飯盒(オーメン)取得
+
+    //followme(//fm) canteen

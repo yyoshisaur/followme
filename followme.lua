@@ -1,4 +1,4 @@
-_addon.version = '0.1.1'
+_addon.version = '0.2.1'
 _addon.name = 'followme'
 _addon.author = 'yyoshisaur'
 _addon.commands = {'followme','fm'}
@@ -7,14 +7,18 @@ require('strings')
 require('logger')
 require('coroutine')
 
-packets = require('packets')
+local packets = require('packets')
 
-ionis_npcs = {
+local ionis_npcs = {
     [256] = {name = 'Fleuricette', menu = 1201},
     [257] = {name = 'Quiri-Aliri', menu = 1201},
 }
 
+local canteen_npc = {[291] = {name = 'Incantrix'},}
+
 local is_ionis_npc_busy = false
+local is_canteen_npc_busy = false
+
 local send_delay = 0.4
 function get_delay()
     local self = windower.ffxi.get_player().name
@@ -96,6 +100,68 @@ function outgoing_ionis(id, data, modified, injected, blocked)
     end
 end
 
+function get_canteen_npc()
+    local zone = windower.ffxi.get_info().zone
+    local npc = nil
+
+    if canteen_npc[zone] then
+        npc = windower.ffxi.get_mob_by_name(canteen_npc[zone].name)
+    else
+        log('No canteen npc found!')
+        return nil
+    end
+
+    if npc and math.sqrt(npc.distance) < 6 then
+        return npc
+    else
+        log(npc.name..' found, but too far!')
+        return nil
+    end
+end
+
+function start_canteen()
+    local npc = get_canteen_npc()
+
+    if npc then
+        local p = packets.new('outgoing', 0x01A, {
+            ["Target"] = npc.id,
+            ["Target Index"] = npc.index,
+            ["Category"] = 0
+        })
+        packets.inject(p)
+        is_canteen_npc_busy = true
+    end
+end
+
+function incoming_canteen(id, data, modified, injected, blocked)
+    if id == 0x034 then
+        if is_canteen_npc_busy then
+            local in_p = packets.parse('incoming', data)
+            local npc = get_canteen_npc()
+
+            if npc and npc.id == in_p["NPC"] then
+                windower.send_command('wait 3;setkey escape;wait 0.5;setkey escape up;')
+            end
+        end
+    end
+end
+
+function outgoing_canteen(id, data, modified, injected, blocked)
+    if id == 0x05B then
+        if is_canteen_npc_busy then
+            local out_p = packets.parse('outgoing', data)
+            local npc = get_canteen_npc()
+
+            if npc and npc.id == out_p["Target"] then
+                out_p["Option Index"] = 3
+                out_p["_unknown1"] = 0
+                is_canteen_npc_busy = false
+                return packets.build(out_p)
+            end
+        end
+    end
+end
+
 -- //fm start
 -- //fm stop
 
@@ -110,6 +176,10 @@ function fm_command(...)
         local delay = get_delay()
         start_ionis:schedule(delay)
         windower.send_ipc_message('ionis')
+    elseif args[1] == 'canteen' then
+        local delay = get_delay()
+        start_canteen:schedule(delay)
+        windower.send_ipc_message('canteen')
     end
 end
 
@@ -130,6 +200,9 @@ function fm_ipc_msg(message)
     elseif msg[1] == 'ionis' then
         local delay = get_delay()
         start_ionis:schedule(delay)
+    elseif msg[1] == 'canteen' then
+        local delay = get_delay()
+        start_canteen:schedule(delay)
     end
 end
 
@@ -138,3 +211,6 @@ windower.register_event('ipc message', fm_ipc_msg)
 
 windower.register_event('incoming chunk', incoming_ionis)
 windower.register_event('outgoing chunk', outgoing_ionis)
+
+windower.register_event('incoming chunk', incoming_canteen)
+windower.register_event('outgoing chunk', outgoing_canteen)
