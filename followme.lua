@@ -1,4 +1,4 @@
-_addon.version = '0.2.1'
+_addon.version = '0.3.1'
 _addon.name = 'followme'
 _addon.author = 'yyoshisaur'
 _addon.commands = {'followme','fm'}
@@ -14,10 +14,19 @@ local ionis_npcs = {
     [257] = {name = 'Quiri-Aliri', menu = 1201},
 }
 
-local canteen_npc = {[291] = {name = 'Incantrix'},}
+local canteen_npc = {
+    [291] = {name = 'Incantrix'},
+}
+
+local domain_invasion_npcs = {
+    [288] = {name = 'Affi', menu = 9701, x = -2, z = 0, y = 59.50, unknown1 = 12, unknown2 = 1},
+    [289] = {name = 'Dremi', menu = 9701, x = 0, z = -43.60, y = -238.00, unknown1 = 12, unknown2 = 1},
+    [291] = {name = 'Shiftrix', menu = 9701, x = 641.6, z = -374.00, y = -912.2, unknown1 = 12, unknown2 = 1},
+}
 
 local is_ionis_npc_busy = false
 local is_canteen_npc_busy = false
+local is_di_npc_busy = false
 
 local send_delay = 0.4
 function get_delay()
@@ -174,6 +183,78 @@ function outgoing_canteen(id, data, modified, injected, blocked)
     end
 end
 
+function get_di_npc()
+    local zone = windower.ffxi.get_info().zone
+    local di_npc = domain_invasion_npcs[zone]
+    local npc = nil
+
+    if di_npc then
+        npc = windower.ffxi.get_mob_by_name(di_npc.name)
+    else
+        log('No DI npc found!')
+        return nil
+    end
+
+    if npc and math.sqrt(npc.distance) < 6 then
+        return npc
+    else
+        log(di_npc.name..' found, but too far!')
+        return nil
+    end
+end
+
+function start_di()
+    local npc = get_di_npc()
+
+    if npc then
+        local p = packets.new('outgoing', 0x01A, {
+            ["Target"] = npc.id,
+            ["Target Index"] = npc.index,
+            ["Category"] = 0
+        })
+        packets.inject(p)
+        is_di_npc_busy = true
+    end
+end
+
+function incoming_di(id, data, modified, injected, blocked)
+    if id == 0x034 then
+        if is_di_npc_busy then
+            local in_p = packets.parse('incoming', data)
+            local npc = get_di_npc()
+            if npc and npc.id == in_p["NPC"] then
+                local zone = in_p["Zone"]
+                local get_p = packets.new('outgoing', 0x05B, {
+                    ["Target"] = npc.id,
+                    ["Option Index"] = 10,
+                    ["Target Index"] = npc.index,
+                    ["Automated Message"] = true,
+                    ["Zone"] = zone,
+                    ["Menu ID"] = domain_invasion_npcs[zone].menu
+                })
+                packets.inject(get_p)
+                coroutine.sleep(1)
+                local  warp_p = packets.new('outgoing', 0x05C, {
+                    ["Target ID"] = npc.id,
+                    ["Target Index"] = npc.index,
+                    ["Zone"] = zone,
+                    ["Menu ID"] = domain_invasion_npcs[zone].menu,
+                    ["X"] = domain_invasion_npcs[zone].x,
+                    ["Z"] = domain_invasion_npcs[zone].z,
+                    ["Y"] = domain_invasion_npcs[zone].y,
+                    ["_unknown1"] = domain_invasion_npcs[zone].unknown1,
+                    ["_unknown2"] = domain_invasion_npcs[zone].unknown2,
+                    ["Rotation"] = 0
+                })
+                packets.inject(warp_p)
+                coroutine.sleep(3)
+                windower.send_command('setkey escape;wait 0.5;setkey escape up;')
+                is_di_npc_busy = false
+            end
+        end
+    end
+end
+
 -- //fm start
 -- //fm stop
 
@@ -192,6 +273,10 @@ function fm_command(...)
         local delay = get_delay()
         start_canteen:schedule(delay)
         windower.send_ipc_message('canteen')
+    elseif args[1] == 'di' then
+        local delay = get_delay()
+        start_di:schedule(delay)
+        windower.send_ipc_message('di')
     end
 end
 
@@ -215,6 +300,9 @@ function fm_ipc_msg(message)
     elseif msg[1] == 'canteen' then
         local delay = get_delay()
         start_canteen:schedule(delay)
+    elseif msg[1] == 'di' then
+        local delay = get_delay()
+        start_di:schedule(delay)
     end
 end
 
@@ -226,3 +314,5 @@ windower.register_event('outgoing chunk', outgoing_ionis)
 
 windower.register_event('incoming chunk', incoming_canteen)
 windower.register_event('outgoing chunk', outgoing_canteen)
+
+windower.register_event('incoming chunk', incoming_di)
