@@ -29,7 +29,9 @@ local is_canteen_npc_busy = false
 local is_di_npc_busy = false
 
 local send_delay = 0.4
-function get_delay()
+math.randomseed(os.clock())
+math.random()
+function get_delay(delay_base)
     local self = windower.ffxi.get_player().name
     local members = {}
     for k, v in pairs(windower.ffxi.get_party()) do
@@ -37,10 +39,17 @@ function get_delay()
             members[#members + 1] = v.name
         end
     end
+
+    if #members == 1 then
+        local delay = math.random(30)*0.1
+        log('Solo: random delay = '..delay)
+        return delay
+    end
+
     table.sort(members)
     for k, v in pairs(members) do
         if v == self then
-            return (k - 1) * send_delay
+            return (k - 1) * delay_base
         end
     end
 end
@@ -143,7 +152,7 @@ function start_canteen()
 end
 
 function has_canteen(menu_param)
-    if bit.band(menu_param[29]:byte(), 0x07) then
+    if menu_param[29]:byte() == 0x07 then
         return true
     else
         return false
@@ -266,15 +275,15 @@ function fm_command(...)
     elseif args[1] == 'stop' then
         windower.send_ipc_message('follow stop')
     elseif args[1] == 'ionis' then
-        local delay = get_delay()
+        local delay = get_delay(send_delay)
         start_ionis:schedule(delay)
         windower.send_ipc_message('ionis')
     elseif args[1] == 'canteen' then
-        local delay = get_delay()
+        local delay = get_delay(send_delay)
         start_canteen:schedule(delay)
         windower.send_ipc_message('canteen')
     elseif args[1] == 'di' then
-        local delay = get_delay()
+        local delay = get_delay(send_delay*5)
         start_di:schedule(delay)
         windower.send_ipc_message('di')
     end
@@ -295,13 +304,13 @@ function fm_ipc_msg(message)
             windower.send_command('setkey numpad7 down;wait .5;setkey numpad7 up;')
         end
     elseif msg[1] == 'ionis' then
-        local delay = get_delay()
+        local delay = get_delay(send_delay)
         start_ionis:schedule(delay)
     elseif msg[1] == 'canteen' then
-        local delay = get_delay()
+        local delay = get_delay(send_delay)
         start_canteen:schedule(delay)
     elseif msg[1] == 'di' then
-        local delay = get_delay()
+        local delay = get_delay(send_delay*5)
         start_di:schedule(delay)
     end
 end
