@@ -1,4 +1,4 @@
-_addon.version = '0.3.1'
+_addon.version = '0.4.0'
 _addon.name = 'followme'
 _addon.author = 'yyoshisaur'
 _addon.commands = {'followme','fm'}
@@ -8,6 +8,7 @@ require('logger')
 require('coroutine')
 local bit = require('bit')
 local packets = require('packets')
+local res = require('resources')
 
 local ionis_npcs = {
     [256] = {name = 'Fleuricette', menu = 1201},
@@ -264,6 +265,15 @@ function incoming_di(id, data, modified, injected, blocked)
     end
 end
 
+local mount_name = windower.to_shift_jis(res.mounts[1].name) -- Raptor
+function mount()
+    windower.send_command('input /mount '..mount_name)
+end
+
+function dismount()
+    windower.send_command('input /dismount')
+end
+
 -- //fm start
 -- //fm stop
 
@@ -286,6 +296,12 @@ function fm_command(...)
         local delay = get_delay(send_delay*5)
         start_di:schedule(delay)
         windower.send_ipc_message('di')
+    elseif args[1] == 'mount' then
+        mount()
+        windower.send_ipc_message('mount')
+    elseif args[1] == 'dismount' then
+        dismount()
+        windower.send_ipc_message('dismount')
     end
 end
 
@@ -300,7 +316,7 @@ function fm_ipc_msg(message)
                 windower.ffxi.follow(index)
             end
         elseif msg[2] == 'stop' then
-            -- windower.ffxi.follow()
+            -- windower.ffxi.follow(-1)
             windower.send_command('setkey numpad7 down;wait .5;setkey numpad7 up;')
         end
     elseif msg[1] == 'ionis' then
@@ -312,6 +328,10 @@ function fm_ipc_msg(message)
     elseif msg[1] == 'di' then
         local delay = get_delay(send_delay*5)
         start_di:schedule(delay)
+    elseif msg[1] == 'mount' then
+        mount()
+    elseif msg[1] == 'dismount' then
+        dismount()
     end
 end
 
