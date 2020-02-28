@@ -1,4 +1,4 @@
-_addon.version = '0.4.0'
+_addon.version = '0.4.1'
 _addon.name = 'followme'
 _addon.author = 'yyoshisaur'
 _addon.commands = {'followme','fm'}
@@ -16,7 +16,7 @@ local ionis_npcs = {
 }
 
 local canteen_npc = {
-    [291] = {name = 'Incantrix'},
+    [291] = {name = 'Incantrix', menu = 31},
 }
 
 local domain_invasion_npcs = {
@@ -97,23 +97,17 @@ function incoming_ionis(id, data, modified, injected, blocked)
             local npc = get_ionis_npc()
 
             if npc and npc.id == in_p["NPC"] then
-                windower.send_command('wait 3;setkey escape;wait 0.5;setkey escape up;')
-            end
-        end
-    end
-end
-
-function outgoing_ionis(id, data, modified, injected, blocked)
-    if id == 0x05B then
-        if is_ionis_npc_busy then
-            local out_p = packets.parse('outgoing', data)
-            local npc = get_ionis_npc()
-
-            if npc and npc.id == out_p["Target"] then
-                out_p["Option Index"] = 1
-                out_p["_unknown1"] = 0
+                local p = packets.new('outgoing', 0x5b, {
+                    ["Target"] = npc.id,
+                    ["Option Index"] = 1,
+                    ["Target Index"] = npc.index,
+                    ["Automated Message"] = false,
+                    ["Zone"] = in_p["Zone"],
+                    ["Menu ID"] = ionis_npcs[in_p["Zone"]].menu,
+                })
+                packets.inject(p)
                 is_ionis_npc_busy = false
-                return packets.build(out_p)
+                return true
             end
         end
     end
@@ -170,24 +164,20 @@ function incoming_canteen(id, data, modified, injected, blocked)
                 if has_canteen(in_p['Menu Parameters']) then
                     is_canteen_npc_busy = false
                     log('You already have Canteen!')
+                    return true
                 end
-                windower.send_command('wait 3;setkey escape;wait 0.5;setkey escape up;')
-            end
-        end
-    end
-end
 
-function outgoing_canteen(id, data, modified, injected, blocked)
-    if id == 0x05B then
-        if is_canteen_npc_busy then
-            local out_p = packets.parse('outgoing', data)
-            local npc = get_canteen_npc()
-
-            if npc and npc.id == out_p["Target"] then
-                out_p["Option Index"] = 3
-                out_p["_unknown1"] = 0
+                local p = packets.new('outgoing', 0x5b, {
+                    ["Target"] = npc.id,
+                    ["Option Index"] = 3,
+                    ["Target Index"] = npc.index,
+                    ["Automated Message"] = false,
+                    ["Zone"] = in_p["Zone"],
+                    ["Menu ID"] = canteen_npc[in_p["Zone"]].menu,
+                })
+                packets.inject(p)
                 is_canteen_npc_busy = false
-                return packets.build(out_p)
+                return true
             end
         end
     end
@@ -339,9 +329,7 @@ windower.register_event('addon command', fm_command)
 windower.register_event('ipc message', fm_ipc_msg)
 
 windower.register_event('incoming chunk', incoming_ionis)
-windower.register_event('outgoing chunk', outgoing_ionis)
 
 windower.register_event('incoming chunk', incoming_canteen)
-windower.register_event('outgoing chunk', outgoing_canteen)
 
 windower.register_event('incoming chunk', incoming_di)
