@@ -164,7 +164,8 @@ function incoming_canteen(id, data, modified, injected, blocked)
                 if has_canteen(in_p['Menu Parameters']) then
                     is_canteen_npc_busy = false
                     log('You already have Canteen!')
-                    return true
+                    windower.send_command('wait 3;setkey escape;wait 0.5;setkey escape up;')
+                    return false
                 end
 
                 local p = packets.new('outgoing', 0x5b, {
