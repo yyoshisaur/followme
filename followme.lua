@@ -1,4 +1,4 @@
-_addon.version = '0.5.0'
+_addon.version = '0.6.0'
 _addon.name = 'followme'
 _addon.author = 'yyoshisaur'
 _addon.commands = {'followme','fm'}
@@ -23,7 +23,7 @@ function fm_ipc_msg(message)
         if msg[2] == 'start' then
             local id = msg[3]
             local mob = windower.ffxi.get_mob_by_id(id)
-            if mob then
+            if mob and mob.valid_target then
                 local index = mob.index
                 windower.ffxi.follow(index)
             end
